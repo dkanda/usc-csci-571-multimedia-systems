@@ -1,3 +1,5 @@
+package part4;
+
 	import java.awt.*;
 	import java.awt.image.*;
 	import java.awt.event.*;
@@ -133,7 +135,7 @@
 		}
 
 		public static void main(String[] args){		
-			csci_576_hw1_part2 ren = new csci_576_hw1_part2();
+			part4 ren = new part4();
 			ren.showMovie(args);
 		}
 
