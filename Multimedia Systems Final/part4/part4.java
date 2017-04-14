@@ -7,9 +7,13 @@ package part4;
 	import javax.swing.*;
 
 	
+	// Run this part with parameters
+	// <input file> <width> <height> <fps>
+	// oneperson_960_540.rgb 960 540 12
+	
 	// This is code is a base from HW1 part 2 where we played a movie.
 	// TODO: Add a mouse listener that can read from the rgb file.
-	public class part4{
+	public class part4 {
 
 		static GridBagConstraints c = new GridBagConstraints();
 		static JLabel lbIm1 = new JLabel();
@@ -22,6 +26,9 @@ package part4;
 		JFrame frame = new JFrame();
 		Timer frameTimer;
 		long len;	
+		PointerInfo a;
+		Point b;
+		int heightTopOffset = 20;
 
 
 		public void showMovie(String[] args){
@@ -70,29 +77,35 @@ package part4;
 		}
 
 		 // Gets the next frame and writes it to the image buffer.
-		 private void getNextFrame(){
+		 private void getNextFrame(int blockX, int blockY){
 			int ind = 0;			
 			int offset = curFrame*width*height*3;
-			for(int y =0; y < height; y++){
+			int pix;
+			for(int y = 0; y < height; y++){
 				
 				for(int x = 0; x < width; x++){
 					
-					byte r = bytes[ind+offset];
-					byte g = bytes[ind+width*height+offset];
-					byte b = bytes[ind+2*width*height+offset];
-					
-					int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | ( b &0xff);
+					// If this block matches our criteria, read it and set it as the pixel to add. 
+					if (y > blockY*64 
+						&& y < blockY*64 + 64
+						&& x > blockX*64 
+						&& x < blockX*64 + 64)
+					{
+						byte r = bytes[ind+offset];
+						byte g = bytes[ind+width*height+offset];
+						byte b = bytes[ind+2*width*height+offset];
+						
+						pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | ( b &0xff);
+					}
+					// Else write a black pixel.
+					else{
+						pix = 0;
+					}
 					img.setRGB(x,y,pix);
 					ind++;
 				}
 			}
-			// Increment curFrame index for next read or set to 0 to loop around.
-			if (curFrame + 1 == numberOfFrames){
-				curFrame = 0;
-			}
-			else{
-				curFrame++;
-			}
+			
 		}
 
 		class DispFrameOnInt implements ActionListener{
@@ -101,9 +114,6 @@ package part4;
 				// Use labels to display the images
 				GridBagLayout gLayout = new GridBagLayout();
 				frame.getContentPane().setLayout(gLayout);
-				String result = String.format("Video height: %d, width: %d, fps: %d", height, width, fps);
-				lbText1 = new JLabel(result);
-				lbText1.setHorizontalAlignment(SwingConstants.CENTER);
 				
 				lbIm1.setIcon(new ImageIcon(img));
 
@@ -113,8 +123,6 @@ package part4;
 				c.weightx = 0.5;
 				c.gridx = 0;
 				c.gridy = 0;
-				frame.getContentPane().add(lbText1,c);
-				
 				
 				c.fill = GridBagConstraints.HORIZONTAL;
 				c.gridx = 0;
@@ -124,13 +132,41 @@ package part4;
 				frame.pack();
 				frame.setVisible(true);
 			}
-			// Draw a frame when called upon by the timer.
+			
+			// This function loops through at a set fps which is passed into the program.
+			// Check if the cursor is on the screen to determine the block beneath it to 
+			// pull from the rgb file.
 			public void actionPerformed(ActionEvent e){
-				getNextFrame();
+				Dimension panelSize = frame.getSize();
+				a = MouseInfo.getPointerInfo();
+				b = a.getLocation();
+				int x = (int) b.getX();
+				int y = (int) b.getY();
+				Point panelLocation = frame.getLocationOnScreen();
+				
+				// Determine if cursor is in range.
+				if( x - panelLocation.x > 0 
+				   && (panelLocation.x + panelSize.width) - x > 0
+				   && y - heightTopOffset - panelLocation.y > 0 
+				   && (panelLocation.y + panelSize.height) - y > 0){
+					int blockX = (x - panelLocation.x) / 64; 
+					int blockY = (y - panelLocation.y) / 64;
+					getNextFrame(blockX, blockY);
+					
+				}
+
 				// Set the image as an icon 
 				lbIm1.setIcon(new ImageIcon(img));
 				frame.getContentPane().add(lbIm1,c);
 				frame.pack();
+				
+				// Increment curFrame index for next read or set to 0 to loop around.
+				if (curFrame + 1 == numberOfFrames){
+					curFrame = 0;
+				}
+				else{
+					curFrame++;
+				}
 			}
 		}
 
