@@ -1,6 +1,8 @@
 package part2;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 
 import kanzi.SliceIntArray;
 import kanzi.transform.DCT8;
@@ -14,6 +16,8 @@ public class part2 {
 	DataOutputStream dos;
 	int[] blockDCT8srcArray,blockDCT8dstArray;
 	SliceIntArray blockDCT8src, blockDCT8dst;
+	ByteBuffer byteBuffer;
+	IntBuffer  intBuffer;
 	DCT8 dct8;
 // For debugging
 //	int[] blockIDCT8dstArray;
@@ -42,6 +46,8 @@ public class part2 {
 		} catch(FileNotFoundException e){
 			e.printStackTrace();
 		}
+		byteBuffer = ByteBuffer.allocate(64*4);
+		intBuffer = byteBuffer.asIntBuffer();
 	}
 	
 	// Write block type to the stream
@@ -51,9 +57,10 @@ public class part2 {
 	
 	// Write coefficients for an 8x8 block to the stream
 	public void writeBlock() throws IOException {
-		for (int i=0; i<64; ++i) {
-			dos.writeInt(blockDCT8dst.array[i]);
-		}
+		intBuffer.put(blockDCT8dst.array);
+		dos.write(byteBuffer.array());
+		intBuffer.clear();
+		byteBuffer.clear();
 	}
 	
 	// Apply DCT transform on an 8x8 block
@@ -72,7 +79,7 @@ public class part2 {
 		}
 		// Forward DCT transform
 		if (false == dct8.forward(blockDCT8src, blockDCT8dst)) {
-			throw new RuntimeException("forward failed");
+			throw new RuntimeException("DCT8.forward failed");
 		}
 //		FIXME following is only for debugging
 //		// Inverse DCT transform
