@@ -22,7 +22,6 @@ public class part3 {
 	float[] srcFloatsBlock, dstFloatsBlock;
 	int frameOffset;
 	Mat srcIDCTMat, dstIDCTMat;
-	int minInt, maxInt;
 	
 	// Required to use OpenCV
 	static{ System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
@@ -65,7 +64,7 @@ public class part3 {
 		byteBuffer = ByteBuffer.allocate(64*4);
 		floatBuffer = byteBuffer.asFloatBuffer();
 		
-		// Float arary used for 8x8 IDCT
+		// Float array used for 8x8 IDCT
 		srcFloatsBlock = new float[64];
 		dstFloatsBlock = new float[64];
 		
@@ -79,9 +78,6 @@ public class part3 {
 		// RGB buffer
 		bytesRaw = new byte[3*width*height*numFrames];
 		bytesQuant = new byte[3*width*height*numFrames];
-		
-		minInt = Integer.MAX_VALUE;
-		maxInt = Integer.MIN_VALUE;		
 	}
 	
 	public int readType() throws IOException {
@@ -115,10 +111,10 @@ public class part3 {
 		srcIDCTMat.put(0, 0, srcFloatsBlock);
 		Core.dct(srcIDCTMat, dstIDCTMat, Core.DCT_INVERSE);
 		dstIDCTMat.get(0,0,dstFloatsBlock);
-		// Store bytes to RGB array
+		// Populate RGB byte array
 		for (int r=row; r<rowEnd; ++r) {
 			for (int c=col; c<colEnd; ++c) {
-				bytesRaw[r*width + c + blockOffset] = (byte) dstFloatsBlock[(r-row)*8 + (c-col)];
+				bytesRaw[r*width + c + blockOffset] = (byte) Math.max(0, dstFloatsBlock[(r-row)*8 + (c-col)]);
 			}
 		}
 		
@@ -130,13 +126,6 @@ public class part3 {
 			value /= step;
 			value *= step;
 			srcFloatsBlock[i] = value;
-			// FIXME record range for debugging
-			if (value < minInt) {
-				minInt = value;
-			}
-			if (maxInt < value) {
-				maxInt = value;
-			}
 		}
 		// Inverse DCT transform
 		srcIDCTMat.put(0, 0, srcFloatsBlock);
@@ -145,7 +134,11 @@ public class part3 {
 		// Populate RGB byte array
 		for (int r=row; r<rowEnd; ++r) {
 			for (int c=col; c<colEnd; ++c) {
-				bytesQuant[r*width + c + blockOffset] = (byte) dstFloatsBlock[(r-row)*8 + (c-col)];
+				float val = dstFloatsBlock[(r-row)*8 + (c-col)];
+				val = (val < 0   ) ? 0    : 
+					  (val > 0xff) ? 0xff : 
+				       val;
+				bytesQuant[r*width + c + blockOffset] = (byte) val;
 			}
 		}
 	}
@@ -172,16 +165,38 @@ public class part3 {
 		os.write(bytesQuant);
 	}
 	
+	// XXX for debugging only
+	public void dumpFrame(int frame, int color, byte[] buffer) throws FileNotFoundException {
+		PrintWriter wrtierFrame = new PrintWriter(String.format("%01d_%03d.txt", color, frame));
+		for (int r=0; r<height; ++r) {
+			for (int c=0; c<width; ++c) {
+				wrtierFrame.print(String.format("%02X ", buffer[r*width + c + frame*frameSize*3 + color*frameSize]));				
+			}
+			wrtierFrame.println();
+		}
+		wrtierFrame.close();
+	}
+
+	// XXX for debugging only
+	public void dumpFrameCoeff(int frame, int color, float[] buffer) throws FileNotFoundException {
+		PrintWriter wrtierFrame = new PrintWriter(String.format("%01d_%03d.txt", color, frame));
+		for (int r=0; r<height; ++r) {
+			for (int c=0; c<width; ++c) {
+				wrtierFrame.print(String.format("%.1f ", buffer[r*width + c + frame*frameSize*3 + color*frameSize]));				
+			}
+			wrtierFrame.println();
+		}
+		wrtierFrame.close();
+	}
+	
 	public void decode() {
 		try {
 			for (int i=0; i<numFrames; ++i) {
 				decodeFrame(i);
 				frameOffset += frameSize*3;
 			}
-			writeRaw();
-//			writeQuant();
-			System.out.println("min: " + minInt);
-			System.out.println("max: " + maxInt);
+//			writeRaw();
+			writeQuant();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
