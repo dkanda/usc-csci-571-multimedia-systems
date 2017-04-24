@@ -7,11 +7,53 @@ import java.awt.image.BufferedImage;
 
 class Macroblock {
 	
+	static int BLK_SIZE = 16;
+	
 	int motionVector = 0;
 	int x_pos = 0;
 	int y_pos = 0;
 	boolean foreground = false;
-	int [][] pixels = new int[16][16];
+	//int [][] pixels = new int[BLK_SIZE][BLK_SIZE];
+	
+	//Macroblock(int x, int y, int [][] pix) {
+	Macroblock(int x, int y) {
+		this.x_pos = x;
+		this.y_pos = y;
+		//this.pixels = pix;
+	}
+	
+	//Macroblock(int x, int y, boolean fg, int [][] pix) {
+	Macroblock(int x, int y, boolean fg) {
+		this.x_pos = x;
+		this.y_pos = y;
+		this.foreground = fg;
+		//this.pixels = pix;
+	}
+	
+	public int getMotionVector() {
+		return this.motionVector;
+	}
+	
+//	public int [][] getPixels() {
+//		return this.pixels;
+//	}
+	
+	public int [] getPosition() {
+		int [] posArray = {x_pos,y_pos};
+		return posArray;
+	}
+	
+	public boolean isForeground() {
+		return this.foreground;
+	}
+	
+	public void setForeground(boolean fg) {
+		this.foreground = fg;
+	}
+	
+	public void setMotionVector(int mv) {
+		this.motionVector = mv;
+	}
 }
 
 public class part1 {
@@ -20,7 +62,6 @@ public class part1 {
 	int width = 0;
 	int height = 0;
 	ArrayList<BufferedImage> srcImages = null;
-
 	
 	public part1(File infile, int w, int h) {
 		
@@ -93,7 +134,6 @@ public class part1 {
 					byte b = bytes[ind+srcHeight*srcWidth*2]; 
 	
 					int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
-					//int pix = ((a << 24) + (r << 16) + (g << 8) + b);
 					img.setRGB(x,y,pix);
 					ind++;
 				}
@@ -117,6 +157,20 @@ public class part1 {
 			System.out.println("Error trying to close input stream.");
 			e.printStackTrace();
 		}
+	}
+	
+	private int [][] getMacroblockPixels(Macroblock block, BufferedImage img) {
+		
+		int blockSize = Macroblock.BLK_SIZE;
+		int [][] pixels = new int [blockSize][blockSize];
+		int [] pos = block.getPosition();
+		
+		for (int x = pos[0]; x < blockSize; x++) {
+			for (int y = pos[1]; y < blockSize; y++) {
+				pixels[x][y] = img.getRGB(x, y);
+			}
+		}
+		return pixels;
 	}
 }
 			
