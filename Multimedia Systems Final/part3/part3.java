@@ -10,37 +10,45 @@ import org.opencv.core.Mat;
 
 public class part3 {
 	byte[] bytes;
-	int stepFg, stepBg, gazeControl, width, height, offset, numFrames, frameSize;
+	int stepFg, stepBg;
+	int width;
+	int height;
+	int offset;
+	int numFrames;
+	int frameSize;
+	boolean gazeControl, realTime;
 	String fileNameInput;
 	String fileNameOutput;
 	FileInputStream fis;
 	DataInputStream dis;
-	OutputStream os;
 	ByteBuffer byteBuffer;
 	FloatBuffer floatBuffer;
-	byte[] bytesBlock, bytesRaw, bytesQuant;
+	public byte[] bytesBlock, bytesRaw, bytesQuant;
 	float[] srcFloatsBlock, dstFloatsBlock;
+	public int [] intsRaw, intsQuant;
 	int frameOffset;
 	Mat srcIDCTMat, dstIDCTMat;
+	
+	public int getWidth() { return width; }
+	public int getHeight() { return height; }
+	public int getNumFrames() { return numFrames; }
+	public boolean getGazeControl() { return gazeControl; }
 	
 	// Required to use OpenCV
 	static{ System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
 
-	public part3(String fi, int n1, int n2, int g, int w, int h, String fo) {
+	public part3(String fi, int n1, int n2, int g, int w, int h, int r) {
 		stepFg = n1;
 		stepBg = n2;
-		gazeControl = g;
+		gazeControl = (0 != g);
 		width  = w;
 		height = h;
 		fileNameInput = fi;
-		fileNameOutput = fo;
-	
+		realTime = (r != 0);
 		File fileInput = new File(fileNameInput);
-		File fileOutput = new File(fileNameOutput);
 		try {
 			fis = new FileInputStream(fileInput);
 			dis = new DataInputStream(fis);
-			os = new FileOutputStream(fileOutput);
 		} catch(FileNotFoundException e){
 			e.printStackTrace();
 		}
@@ -78,6 +86,11 @@ public class part3 {
 		// RGB buffer
 		bytesRaw = new byte[3*width*height*numFrames];
 		bytesQuant = new byte[3*width*height*numFrames];
+		intsRaw = new int [width*height*numFrames];
+		intsQuant = new int [width*height*numFrames];
+		
+		// Offline process the video
+		if (!realTime) decode();
 	}
 	
 	public int readType() throws IOException {
@@ -101,6 +114,7 @@ public class part3 {
 		
 		// Offset to the beginning of current block
 		int blockOffset = colorOffset + frameOffset;
+		int color = colorOffset/frameSize;
 		
 		// Detect frame boundary
 		int rowEnd = Math.min(row+8, height);
@@ -115,6 +129,7 @@ public class part3 {
 		for (int r=row; r<rowEnd; ++r) {
 			for (int c=col; c<colEnd; ++c) {
 				bytesRaw[r*width + c + blockOffset] = (byte) Math.max(0, dstFloatsBlock[(r-row)*8 + (c-col)]);
+				intsRaw[r*width + c + frameOffset/3] |= ((int) Math.max(0, dstFloatsBlock[(r-row)*8 + (c-col)])) << (2-color)*8;
 			}
 		}
 		
@@ -139,6 +154,7 @@ public class part3 {
 					  (val > 0xff) ? 0xff : 
 				       val;
 				bytesQuant[r*width + c + blockOffset] = (byte) val;
+				intsQuant[r*width + c + frameOffset/3] |= ((int) val) << (2-color)*8;
 			}
 		}
 	}
@@ -156,15 +172,23 @@ public class part3 {
 			}
 		}
 	}
-	
+
+	// XXX for debugging only
 	public void writeRaw() throws IOException {
+		File fileOutput = new File("raw.rgb");
+		OutputStream os = new FileOutputStream(fileOutput); 
 		os.write(bytesRaw);
+		os.close();
 	}
 	
+	// XXX for debugging only
 	public void writeQuant() throws IOException {
-		os.write(bytesQuant);
+		File fileOutput = new File("quant.rgb");
+		OutputStream os = new FileOutputStream(fileOutput); 
+		os.write(bytesRaw);
+		os.close();
 	}
-	
+
 	// XXX for debugging only
 	public void dumpFrame(int frame, int color, byte[] buffer) throws FileNotFoundException {
 		PrintWriter wrtierFrame = new PrintWriter(String.format("%01d_%03d.txt", color, frame));
@@ -195,8 +219,9 @@ public class part3 {
 				decodeFrame(i);
 				frameOffset += frameSize*3;
 			}
+			// XXX for debugging only			
 //			writeRaw();
-			writeQuant();
+//			writeQuant();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -207,13 +232,13 @@ public class part3 {
 		return "usage) myencoder.exe input_file n1 n2 gazeControl width height output_file\n"; 
 	}
 	
-	//mydecoder.exe input_video.cmp n1 n2 gazeControl
+	//mydecoder.exe input_video.cmp n1 n2 gazeControl width height
 	public static void main(String[] args) {
 		// Parse command line arguments. 
 		// Note: It currently requires 7 arguments instead of 4
 		//       in order to support various images sizes and
 		//       in order to an intermediate rgb file for debugging
-		if (args.length != 7) {
+		if (args.length != 6) {
 			throw new RuntimeException(usage());
 		}
 		String fi = args[0];                // Input file
@@ -224,7 +249,7 @@ public class part3 {
 		int h = Integer.parseInt(args[5]);  // Frame size
 		String fo = args[6];                // Output rgb file
 		// Decode video
-		part3 D = new part3(fi, n1, n2, g, w, h, fo);
+		part3 D = new part3(fi, n1, n2, g, w, h, 0);
 		D.decode();
 	}	
 }
