@@ -112,11 +112,7 @@ import part3.part3;
 				int y_e = Math.min(height, y_b+64);
 				int x_b = blockX*64;
 				int x_e = Math.min(width, x_b+64);
-				for (int y=y_b; y<y_e; ++y) {
-					for (int x=x_b; x<x_e; ++x) {
-						img.setRGB(x,y,part3Obj.intsRaw[y*width + x + offset]);
-					}
-				}			
+				img.setRGB(x_b, y_b, x_e-x_b, y_e-y_b, part3Obj.intsRaw, y_b*width + x_b + offset, width);
 			}
 		}
 
