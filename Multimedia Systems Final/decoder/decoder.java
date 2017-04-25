@@ -3,12 +3,6 @@ package decoder;
 import part3.part3;
 import part4.part4;
 
-	
-	// Run this part with parameters
-	// <input file> <width> <height> <fps>
-	// oneperson_960_540.rgb 960 540 12
-	
-
 	public class decoder {
 				
 		public static String usage() {
@@ -18,8 +12,7 @@ import part4.part4;
 		public static void main(String[] args){
 			// Parse command line arguments. 
 			// Note: It currently requires 7 arguments instead of 4
-			//       in order to support various images sizes and
-			//       in order to an intermediate rgb file for debugging
+			//       in order to support various images sizes
 			if (args.length != 6) {
 				throw new RuntimeException(usage());
 			}
@@ -34,7 +27,6 @@ import part4.part4;
 			part3 part3Obj = new part3(fi, n1, n2, g, w, h, r);
 			part4 part4Obj = new part4(part3Obj);
 			part4Obj.showMovie();
-//			ren.showMovie(args);
 		}
 
 	}
