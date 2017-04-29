@@ -6,42 +6,52 @@ import java.util.HashMap;
 import java.awt.image.BufferedImage;
 
 
-class Macroblock {
+class Macroblock extends BufferedImage {
 	
 	static int BLK_SIZE = 16;
 	
 	int frameIndex = 0;
 	int motionVector = 0;
-	int offset = 0;
+	
+	//x,y position in the containing BufferedImage of the first
+	//macroblock pixel
+	int x_anchor = 0; 
+	int y_anchor = 0;
+	
 	boolean foreground = false;
 	
 	Macroblock matchBlock = null; //best match from previous frame
 	
-	Macroblock(int frame, int off) {
-		this.frameIndex = frame;
-		this.offset = off;
+	Macroblock(int x_pos, int y_pos) {
+		super(Macroblock.BLK_SIZE, Macroblock.BLK_SIZE, BufferedImage.TYPE_INT_RGB);
+		//this.frameIndex = frame;
+		this.x_anchor = x_pos;
+		this.y_anchor = y_pos;
 	}
 	
-	Macroblock(int frame, int off, boolean fg) {
-		this.frameIndex = frame;
-		this.offset = off;
+	Macroblock(int x_pos, int y_pos, boolean fg) {
+		super(Macroblock.BLK_SIZE, Macroblock.BLK_SIZE, BufferedImage.TYPE_INT_RGB);
+		//this.frameIndex = frame;
+		this.x_anchor = x_pos;
+		this.y_anchor = y_pos;
 		this.foreground = fg;
 	}
 	
-	public int getFrame() {
-		return this.frameIndex;
-	}
+//	public int getFrame() {
+//		return this.frameIndex;
+//	}
 	
-	public Macroblock getMatch() {
-		return this.matchBlock;
-	}
+//	public Macroblock getMatch() {
+//		return this.matchBlock;
+//	}
 	
 	public int getMotionVector() {
 		return this.motionVector;
 	}
 	
-	public int getOffset() {
-		return this.offset;
+	public int [] getxy() {
+		int [] x_y = new int [] {this.x_anchor,this.y_anchor};
+		return x_y;
 	}
 	
 	public boolean isForeground() {
@@ -52,9 +62,9 @@ class Macroblock {
 		this.foreground = fg;
 	}
 	
-	public void setMatch(Macroblock match) {
-		this.matchBlock = match;
-	}
+//	public void setMatch(Macroblock match) {
+//		this.matchBlock = match;
+//	}
 	
 	public void setMotionVector(int mv) {
 		this.motionVector = mv;
@@ -66,8 +76,8 @@ public class part1 {
 	File input = null;
 	int width = 0;
 	int height = 0;
-	ArrayList<BufferedImage> srcImages = null;
-	HashMap<Integer,ArrayList<Macroblock>> blockMap = null; //maps frames to macroblock lists
+	ArrayList<BufferedImage> srcImages = null;  //list of frames
+	HashMap<Integer,ArrayList<Macroblock>> blockMap = null; //maps frames to their Macroblock lists
 	
 	public part1(File infile, int w, int h) {
 		
@@ -81,7 +91,7 @@ public class part1 {
 		this.getFrames();
 		
 		for (int i = 0; i < srcImages.size(); i++) {
-			blockMap.put(i, this.getMacroblocks(srcImages.get(i),i));
+			blockMap.put(i, this.getMacroblocks(srcImages.get(i)));
 		}
 	}
 		
@@ -98,17 +108,18 @@ public class part1 {
 		for (Macroblock currentBlock : this.blockMap.get(currentFrameIndex)) {
 			
 			int lowestSAD = 0xFFFFFFFF;
+			Macroblock matchBlock = null;
 			for (Macroblock refBlock : this.blockMap.get(refFrameIndex)) {
 				int currentSAD = this.calcSAD(currentBlock, refBlock);
 				if (currentSAD < lowestSAD) {
-					currentBlock.setMatch(refBlock);
+					matchBlock = refBlock;
 					lowestSAD = currentSAD;
 				}
 			}
 		}
 	}
 	
-	public ArrayList<Macroblock> getMacroblocks(BufferedImage frame, int frameIndex) {
+	public ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
 	// Returns an ArrayList of Macroblock objects for the frame
 		ArrayList<Macroblock> blocks = new ArrayList<Macroblock>();
 		
@@ -191,19 +202,15 @@ public class part1 {
 		}
 	}
 	
-//	private int [][] getMacroblockPixels(Macroblock block, BufferedImage img) {
-//		
-//		int blockSize = Macroblock.BLK_SIZE;
-//		int [][] pixels = new int [blockSize][blockSize];
-//		int [] pos = block.getPosition();
-//		
-//		for (int x = pos[0]; x < blockSize; x++) {
-//			for (int y = pos[1]; y < blockSize; y++) {
-//				pixels[x][y] = img.getRGB(x, y);
-//			}
-//		}
-//		return pixels;
-//	}
+	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
+		
+		int blockSize = Macroblock.BLK_SIZE;
+		int [] startPos = block.getxy();
+		
+		for (int x = 0; x < blockSize; x++) {
+			for (int y = 0; y < blockSize; y++) {
+				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
+			}
+		}
+	}
 }
-			
-
