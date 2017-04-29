@@ -6,6 +6,8 @@ package part4;
 	import java.io.*;
 	import javax.swing.*;
 
+import part3.part3;
+
 	
 	// Run this part with parameters
 	// <input file> <width> <height> <fps>
@@ -29,10 +31,34 @@ package part4;
 		PointerInfo a;
 		Point b;
 		int heightTopOffset = 20;
-
-
-		public void showMovie(String[] args){
+		part3 part3Obj;
+		boolean gazeControl;
+		
+		public part4(part3 obj) {
+			part3Obj = obj;
+			width = part3Obj.getWidth();
+			height = part3Obj.getHeight();
+			numberOfFrames = part3Obj.getNumFrames();
+			gazeControl = part3Obj.getGazeControl();
+			fps = 10;
+		}
+				
+		public void showMovie() {
+			// Display Image
+			img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);				
+			// Instantiate frame sync class to use with timer.
+			DispFrameOnInt frameSync = new DispFrameOnInt();
+			// Calculate the time interval for each frame to be displayed.
+			//  as 1 / fps. 
+			frameTimer = new Timer((int) (1000.00 / fps), frameSync);
+			frameTimer.start();
+		}
+		
+		private part4() {
 			
+		}
+		
+		public void showMovie(String[] args) {			
 			if( args.length == 4){	
 				fileName = args[0];
 				width = Integer.parseInt(args[1]);
@@ -73,39 +99,21 @@ package part4;
 			//  as 1 / fps. 
 			frameTimer = new Timer((int) (1000.00 / fps), frameSync);
 			frameTimer.start();
-			
 		}
 
 		 // Gets the next frame and writes it to the image buffer.
-		 private void getNextFrame(int blockX, int blockY){
-			int ind = 0;			
-			int offset = curFrame*width*height*3;
-			int pix;
-			for(int y = 0; y < height; y++){
-				
-				for(int x = 0; x < width; x++){
-					
-					// If this block matches our criteria, read it and set it as the pixel to add. 
-					if (y > blockY*64 
-						&& y < blockY*64 + 64
-						&& x > blockX*64 
-						&& x < blockX*64 + 64)
-					{
-						byte r = bytes[ind+offset];
-						byte g = bytes[ind+width*height+offset];
-						byte b = bytes[ind+2*width*height+offset];
-						
-						pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | ( b &0xff);
-					}
-					// Else write a black pixel.
-					else{
-						pix = 0;
-					}
-					img.setRGB(x,y,pix);
-					ind++;
-				}
+		 private void getNextFrame(int blockX, int blockY){		
+			int offset = curFrame*width*height;
+			// Set quantized pixel values for the entire frame
+			img.setRGB(0, 0, width, height, part3Obj.intsQuant, offset, width);
+			if (gazeControl) {
+				// Set raw pixel values for the gaze window
+				int y_b = blockY*64;
+				int y_e = Math.min(height, y_b+64);
+				int x_b = blockX*64;
+				int x_e = Math.min(width, x_b+64);
+				img.setRGB(x_b, y_b, x_e-x_b, y_e-y_b, part3Obj.intsRaw, y_b*width + x_b + offset, width);
 			}
-			
 		}
 
 		class DispFrameOnInt implements ActionListener{
@@ -170,7 +178,7 @@ package part4;
 			}
 		}
 
-		public static void main(String[] args){		
+		public static void main(String[] args){
 			part4 ren = new part4();
 			ren.showMovie(args);
 		}
