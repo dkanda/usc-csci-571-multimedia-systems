@@ -11,7 +11,7 @@ class Macroblock extends BufferedImage {
 	static int BLK_SIZE = 16;
 	
 	int frameIndex = 0;
-	int motionVector = 0;
+	int [] motionVector = new int[2];
 	
 	//x,y position in the containing BufferedImage of the first
 	//macroblock pixel
@@ -45,7 +45,7 @@ class Macroblock extends BufferedImage {
 //		return this.matchBlock;
 //	}
 	
-	public int getMotionVector() {
+	public int [] getMotionVector() {
 		return this.motionVector;
 	}
 	
@@ -66,7 +66,7 @@ class Macroblock extends BufferedImage {
 //		this.matchBlock = match;
 //	}
 	
-	public void setMotionVector(int mv) {
+	public void setMotionVector(int [] mv) {
 		this.motionVector = mv;
 	}
 }
@@ -95,16 +95,20 @@ public class part1 {
 		}
 	}
 		
-	public int calcSAD(Macroblock block1, Macroblock block2) {
+	private int calcSAD(Macroblock block1, Macroblock block2) {
 		
 		int SAD = 0;
 		
-		//TODO: get and compare pixels from the frame using index and offset
+		for (int x = 0; x < Macroblock.BLK_SIZE; x++) {
+			for (int y = 0; y > Macroblock.BLK_SIZE; y++) {
+				SAD += (Math.abs(block1.getRGB(x, y) - block2.getRGB(x, y)));
+			}
+		}
 		
 		return SAD;
 	}
 	
-	public void computeMVS(int refFrameIndex, int currentFrameIndex) {
+	private void computeMVS(int refFrameIndex, int currentFrameIndex) {
 		for (Macroblock currentBlock : this.blockMap.get(currentFrameIndex)) {
 			
 			int lowestSAD = 0xFFFFFFFF;
@@ -116,18 +120,56 @@ public class part1 {
 					lowestSAD = currentSAD;
 				}
 			}
+			
+			// At this point, the lowest SAD has been found
+			int [] motionVector = new int [2];
+			int [] currentXY = currentBlock.getxy();
+			int [] refXY = matchBlock.getxy();
+			
+			motionVector[0] = currentXY[0] - refXY[0];
+			motionVector[1] = currentXY[1] - refXY[1];
+			
+			currentBlock.setMotionVector(motionVector);
 		}
 	}
 	
-	public ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
+	private ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
 	// Returns an ArrayList of Macroblock objects for the frame
 		ArrayList<Macroblock> blocks = new ArrayList<Macroblock>();
 		
-		//TODO: create macroblock objects from the frame
+		int blockSize = Macroblock.BLK_SIZE;
+		int numBlocks = (this.width * this.height) / (blockSize * blockSize);
+		int blockOffset = 0;
+		int xOffset = 0;
+		int yOffset = 0;
 		
+		while (blockOffset < numBlocks) {
+			Macroblock block = new Macroblock(xOffset, yOffset);
+			for (int x = xOffset; x < xOffset + blockSize; x++) {
+				for (int y = yOffset; y < yOffset + blockSize; y++) {
+					block.setRGB(x, y, frame.getRGB(x, y));
+					yOffset++;
+				}
+				xOffset++;
+			}
+			blocks.add(block);
+			blockOffset++;
+		}		
 		return blocks;
 	}
+	
+	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
 		
+		int blockSize = Macroblock.BLK_SIZE;
+		int [] startPos = block.getxy();
+		
+		for (int x = 0; x < blockSize; x++) {
+			for (int y = 0; y < blockSize; y++) {
+				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
+			}
+		}
+	}
+	
 	private void getFrames() {
 				
 		InputStream is = null;
@@ -187,6 +229,8 @@ public class part1 {
 				bytes[i] = 0;
 			}
 			
+			this.resizeFrame(img);
+			
 			// Put this frame in the frames ArrayList
 			this.srcImages.add(img);
 		}
@@ -202,15 +246,37 @@ public class part1 {
 		}
 	}
 	
-	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
+	private void resizeFrame(BufferedImage img) {
+		int new_width = this.width;
+		int new_height = this.height;
 		
-		int blockSize = Macroblock.BLK_SIZE;
-		int [] startPos = block.getxy();
+		while (new_width % Macroblock.BLK_SIZE != 0) {
+			new_width++;
+		}
 		
-		for (int x = 0; x < blockSize; x++) {
-			for (int y = 0; y < blockSize; y++) {
-				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
+		while (new_height % Macroblock.BLK_SIZE != 0) {
+			new_height++;
+		}
+		
+		for (int x = this.width; x < new_width; x++) {
+			for (int y = 0; y < this.height; y++) {
+				img.setRGB(x, y, img.getRGB(x-1, y));
 			}
 		}
+		
+		for (int y = this.height; y < new_height; y++) {
+			for (int x = 0; x < new_width; x++) {
+				img.setRGB(x, y, img.getRGB(x, y-1));
+			}
+		}
+		
+		this.width = new_width;
+		this.height = new_height;
+	}
+	
+	public HashMap<Integer,ArrayList<Macroblock>> getMotionVectors() {
+		
+		//TODO: 
+		return this.blockMap;
 	}
 }
