@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.awt.image.BufferedImage;
+import java.lang.Exception;
 
 
 class Macroblock extends BufferedImage {
@@ -19,6 +20,7 @@ class Macroblock extends BufferedImage {
 	int y_anchor = 0;
 	
 	boolean foreground = false;
+	boolean foregroundChecked = false;
 	
 	Macroblock matchBlock = null; //best match from previous frame
 	
@@ -58,8 +60,16 @@ class Macroblock extends BufferedImage {
 		return this.foreground;
 	}
 	
+	public boolean isChecked() {
+		return this.foregroundChecked;
+	}
+	
 	public void setForeground(boolean fg) {
 		this.foreground = fg;
+	}
+	
+	public void setForegroundChecked(boolean checked) {
+		this.foregroundChecked = checked;
 	}
 	
 //	public void setMatch(Macroblock match) {
@@ -133,6 +143,100 @@ public class part1 {
 		}
 	}
 	
+	private void decideForeground(ArrayList<Macroblock> blockList) throws Exception {
+		int numColumns = this.width / Macroblock.BLK_SIZE;
+		int numRows = this.height / Macroblock.BLK_SIZE;
+		ArrayList<Macroblock> foregroundList = new ArrayList<Macroblock>();
+		ArrayList<Macroblock> backgroundList = new ArrayList<Macroblock>();
+		
+		int mvErrorMargin = 2;
+		
+		for (int i = 0; i < blockList.size(); i++) {
+			
+			if (blockList.get(i).isChecked()) {
+				continue;
+			}
+			
+			// Get the current motion vector array for comparison
+			int [] currentMV = blockList.get(i).getMotionVector();
+			ArrayList<Macroblock> neighborBlocks = new ArrayList<Macroblock>();
+			
+			// Get surrounding blocks for comparison
+			if ((i - 1) >= 0) {
+				neighborBlocks.add(blockList.get(i-1));
+			}
+			
+			if ((i + 1) < numColumns) {
+				neighborBlocks.add(blockList.get(i+1));
+			}
+			
+			if ((i - numColumns) >= 0) {
+				neighborBlocks.add(blockList.get(i-numColumns));
+			}
+			
+			if ((i + numColumns) < numRows) {
+				neighborBlocks.add(blockList.get(i+numColumns));
+			}
+			
+			//TEST: Just a check to make sure all blocks are accounted for
+			if ((foregroundList.size() + backgroundList.size()) < blockList.size()) {
+				throw new Exception("WARNING: Not all macroblocks were classified foreground/background.");
+			}
+			
+			// Assumption 1: If there was no motion, set current block and matching
+			// neighbors to background. Otherwise, set to foreground.
+			if ((currentMV[0] <= mvErrorMargin) && (currentMV[1] <= mvErrorMargin)) {
+				blockList.get(i).setForegroundChecked(true);
+				backgroundList.add(blockList.get(i));
+				
+				//Check neighbors
+				for (Macroblock neighbor : neighborBlocks) {
+					
+					if (neighbor.isChecked()) {
+						continue;
+					}
+					
+					if ((neighbor.getMotionVector()[0] - currentMV[0]) < mvErrorMargin
+							&& (neighbor.getMotionVector()[1] - currentMV[1]) < mvErrorMargin) {
+						neighbor.setForegroundChecked(true);
+						backgroundList.add(neighbor);
+					}
+				}
+			}
+			else {
+				blockList.get(i).setForegroundChecked(true);
+				foregroundList.add(blockList.get(i));
+				
+				//Check neighbors
+				for (Macroblock neighbor : neighborBlocks) {
+					
+					if (neighbor.isChecked()) {
+						continue;
+					}
+					
+					if ((neighbor.getMotionVector()[0] - currentMV[0]) < mvErrorMargin
+							&& (neighbor.getMotionVector()[1] - currentMV[1]) < mvErrorMargin) {
+						neighbor.setForegroundChecked(true);
+						foregroundList.add(neighbor);
+					}
+				}
+			}
+			
+			// Assumption 2: There will be more background macroblocks
+			// than foreground macroblocks
+			if (foregroundList.size() > backgroundList.size()) {
+				// We need to switch the values
+				for (Macroblock block : foregroundList) {
+					block.setForeground(false);
+				}
+				
+				for (Macroblock block : backgroundList) {
+					block.setForeground(true);
+				}
+			}
+		}
+	}
+	
 	private ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
 	// Returns an ArrayList of Macroblock objects for the frame
 		ArrayList<Macroblock> blocks = new ArrayList<Macroblock>();
@@ -157,18 +261,18 @@ public class part1 {
 		}		
 		return blocks;
 	}
-	
-	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
-		
-		int blockSize = Macroblock.BLK_SIZE;
-		int [] startPos = block.getxy();
-		
-		for (int x = 0; x < blockSize; x++) {
-			for (int y = 0; y < blockSize; y++) {
-				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
-			}
-		}
-	}
+
+//	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
+//		
+//		int blockSize = Macroblock.BLK_SIZE;
+//		int [] startPos = block.getxy();
+//		
+//		for (int x = 0; x < blockSize; x++) {
+//			for (int y = 0; y < blockSize; y++) {
+//				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
+//			}
+//		}
+//	}
 	
 	private void getFrames() {
 				
@@ -274,9 +378,28 @@ public class part1 {
 		this.height = new_height;
 	}
 	
-	public HashMap<Integer,ArrayList<Macroblock>> getMotionVectors() {
+	public HashMap<Integer,ArrayList<Macroblock>> doPart1() throws Exception {
 		
-		//TODO: 
+		int frameIndex = 0;
+		
+		this.getFrames();
+		
+		for (BufferedImage frame : this.srcImages) {
+			this.resizeFrame(frame);
+			this.blockMap.put(frameIndex, this.getMacroblocks(frame));
+			
+			if (frameIndex != 0) {
+				this.computeMVS(frameIndex-1, frameIndex);
+				
+				try {
+					this.decideForeground(this.blockMap.get(frameIndex));
+				}
+				catch (Exception ex) {
+					throw ex;
+				}
+			}
+		}
+		
 		return this.blockMap;
 	}
 }
