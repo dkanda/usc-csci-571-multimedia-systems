@@ -4,7 +4,6 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.awt.image.BufferedImage;
-import java.lang.Exception;
 
 
 class Macroblock extends BufferedImage {
@@ -21,8 +20,6 @@ class Macroblock extends BufferedImage {
 	
 	boolean foreground = false;
 	boolean foregroundChecked = false;
-	
-	Macroblock matchBlock = null; //best match from previous frame
 	
 	Macroblock(int x_pos, int y_pos) {
 		super(Macroblock.BLK_SIZE, Macroblock.BLK_SIZE, BufferedImage.TYPE_INT_RGB);
@@ -86,8 +83,8 @@ public class part1 {
 	File input = null;
 	int width = 0;
 	int height = 0;
-	ArrayList<BufferedImage> srcImages = null;  //list of frames
-	HashMap<Integer,ArrayList<Macroblock>> blockMap = null; //maps frames to their Macroblock lists
+	ArrayList<BufferedImage> srcImages = new ArrayList<BufferedImage>();  //list of frames
+	HashMap<Integer,ArrayList<Macroblock>> blockMap = new HashMap<Integer,ArrayList<Macroblock>>(); //maps frames to their Macroblock lists
 	
 	public part1(File infile, int w, int h) {
 		
@@ -97,12 +94,6 @@ public class part1 {
 		
 		srcImages = new ArrayList<BufferedImage>();
 		
-		// Read frames from the video file
-		this.getFrames();
-		
-		for (int i = 0; i < srcImages.size(); i++) {
-			blockMap.put(i, this.getMacroblocks(srcImages.get(i)));
-		}
 	}
 		
 	private int calcSAD(Macroblock block1, Macroblock block2) {
@@ -121,7 +112,7 @@ public class part1 {
 	private void computeMVS(int refFrameIndex, int currentFrameIndex) {
 		for (Macroblock currentBlock : this.blockMap.get(currentFrameIndex)) {
 			
-			int lowestSAD = 0xFFFFFFFF;
+			int lowestSAD = 16581376;
 			Macroblock matchBlock = null;
 			for (Macroblock refBlock : this.blockMap.get(refFrameIndex)) {
 				int currentSAD = this.calcSAD(currentBlock, refBlock);
@@ -143,7 +134,8 @@ public class part1 {
 		}
 	}
 	
-	private void decideForeground(ArrayList<Macroblock> blockList) throws Exception {
+	private void decideForeground(ArrayList<Macroblock> blockList) {
+		
 		int numColumns = this.width / Macroblock.BLK_SIZE;
 		int numRows = this.height / Macroblock.BLK_SIZE;
 		ArrayList<Macroblock> foregroundList = new ArrayList<Macroblock>();
@@ -178,10 +170,6 @@ public class part1 {
 				neighborBlocks.add(blockList.get(i+numColumns));
 			}
 			
-			//TEST: Just a check to make sure all blocks are accounted for
-			if ((foregroundList.size() + backgroundList.size()) < blockList.size()) {
-				throw new Exception("WARNING: Not all macroblocks were classified foreground/background.");
-			}
 			
 			// Assumption 1: If there was no motion, set current block and matching
 			// neighbors to background. Otherwise, set to foreground.
@@ -221,58 +209,61 @@ public class part1 {
 					}
 				}
 			}
+		}
+		
+		//TEST: Just a check to make sure all blocks are accounted for
+		if ((foregroundList.size() + backgroundList.size()) < blockList.size()) {
+			System.out.println("WARNING: Not all macroblocks were classified foreground/background.");
+		}
+		
+		// Assumption 2: There will be more background macroblocks
+		// than foreground macroblocks
+		if (foregroundList.size() > backgroundList.size()) {
+			// We need to switch the values
+			for (Macroblock block : foregroundList) {
+				block.setForeground(false);
+			}
 			
-			// Assumption 2: There will be more background macroblocks
-			// than foreground macroblocks
-			if (foregroundList.size() > backgroundList.size()) {
-				// We need to switch the values
-				for (Macroblock block : foregroundList) {
-					block.setForeground(false);
-				}
-				
-				for (Macroblock block : backgroundList) {
-					block.setForeground(true);
-				}
+			for (Macroblock block : backgroundList) {
+				block.setForeground(true);
 			}
 		}
 	}
 	
 	private ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
-	// Returns an ArrayList of Macroblock objects for the frame
+		
+		// Returns an ArrayList of Macroblock objects for the frame
 		ArrayList<Macroblock> blocks = new ArrayList<Macroblock>();
 		
 		int blockSize = Macroblock.BLK_SIZE;
-		int numBlocks = (this.width * this.height) / (blockSize * blockSize);
-		int blockOffset = 0;
-		int xOffset = 0;
-		int yOffset = 0;
-		
-		while (blockOffset < numBlocks) {
-			Macroblock block = new Macroblock(xOffset, yOffset);
-			for (int x = xOffset; x < xOffset + blockSize; x++) {
-				for (int y = yOffset; y < yOffset + blockSize; y++) {
-					block.setRGB(x, y, frame.getRGB(x, y));
-					yOffset++;
+		int blocksInRow = this.width / blockSize;
+		int blocksInCol = this.height / blockSize;
+
+		for (int rowIndex = 0; rowIndex < blocksInCol; rowIndex++) {
+			//System.out.println(blockOffset);
+			int yOffset = rowIndex * blockSize;
+			for (int colIndex = 0; colIndex < blocksInRow; colIndex++) {
+				int xOffset = colIndex * blockSize;
+				int xLimit = xOffset + blockSize;
+				int yLimit = yOffset + blockSize;
+				Macroblock block = new Macroblock(blockSize, blockSize);
+				
+				int macroXIndex = 0;
+				for (int x = xOffset; x < xLimit; x++) {
+					int macroYIndex = 0;
+					for (int y = yOffset; y < yLimit; y++) {
+						//System.out.println("Setting macroblock RGB at: " + macroXIndex + " " + macroYIndex);
+						//System.out.println("Getting original pixel at: " + x + " " + y);
+						block.setRGB(macroXIndex, macroYIndex, frame.getRGB(x, y));
+						macroYIndex++;
+					}
+					macroXIndex++;
 				}
-				xOffset++;
+				blocks.add(block);
 			}
-			blocks.add(block);
-			blockOffset++;
 		}		
 		return blocks;
 	}
-
-//	private void fillMacroblockPixels(Macroblock block, BufferedImage img) {
-//		
-//		int blockSize = Macroblock.BLK_SIZE;
-//		int [] startPos = block.getxy();
-//		
-//		for (int x = 0; x < blockSize; x++) {
-//			for (int y = 0; y < blockSize; y++) {
-//				block.setRGB(x, y, img.getRGB(startPos[0]+x,startPos[1]+y));
-//			}
-//		}
-//	}
 	
 	private void getFrames() {
 				
@@ -290,7 +281,6 @@ public class part1 {
 		
 		
 		// Get the source images
-		System.out.println("Gathering original video frames...");
 		long frameLength = srcWidth * srcHeight * 3; // Three bytes per pixel
 		long fileLength = this.input.length();
 		byte[] bytes = new byte[(int)frameLength];
@@ -333,7 +323,7 @@ public class part1 {
 				bytes[i] = 0;
 			}
 			
-			this.resizeFrame(img);
+			//this.resizeFrame(img);
 			
 			// Put this frame in the frames ArrayList
 			this.srcImages.add(img);
@@ -350,56 +340,81 @@ public class part1 {
 		}
 	}
 	
-	private void resizeFrame(BufferedImage img) {
-		int new_width = this.width;
-		int new_height = this.height;
-		
-		while (new_width % Macroblock.BLK_SIZE != 0) {
-			new_width++;
+	private void resizeFrames() {		
+		// Test up front
+		if ((this.width % Macroblock.BLK_SIZE) == 0
+				&& (this.height % Macroblock.BLK_SIZE) == 0) {
+			//Frames are sized appropriately. Just return
+			return;
 		}
+		else {		
 		
-		while (new_height % Macroblock.BLK_SIZE != 0) {
-			new_height++;
-		}
-		
-		for (int x = this.width; x < new_width; x++) {
-			for (int y = 0; y < this.height; y++) {
-				img.setRGB(x, y, img.getRGB(x-1, y));
+			int new_width = this.srcImages.get(0).getWidth();
+			int new_height = this.srcImages.get(0).getHeight();
+			
+			while ((new_width % Macroblock.BLK_SIZE) != 0) {
+				new_width++;
 			}
-		}
-		
-		for (int y = this.height; y < new_height; y++) {
-			for (int x = 0; x < new_width; x++) {
-				img.setRGB(x, y, img.getRGB(x, y-1));
+			
+			while ((new_height % Macroblock.BLK_SIZE) != 0) {
+				new_height++;
 			}
+			
+			System.out.println("New width: " + new_width);
+			System.out.println("New height: " + new_height);
+			
+			for (int i = 0; i < this.srcImages.size(); i++) {
+			
+				BufferedImage oldImg = this.srcImages.get(i);
+				BufferedImage newImg = new BufferedImage(new_width,new_height,oldImg.getType());
+			
+				for (int x = 0; x < oldImg.getWidth(); x++) {
+					for (int y = 0; y < oldImg.getHeight(); y++) {
+						newImg.setRGB(x, y, oldImg.getRGB(x, y));
+					}
+				}
+			
+				for (int x = oldImg.getWidth(); x < newImg.getWidth(); x++) {
+					for (int y = 0; y < oldImg.getHeight(); y++) {
+						newImg.setRGB(x, y, newImg.getRGB(x-1, y));
+					}
+				}
+			
+				for (int y = oldImg.getHeight(); y < newImg.getHeight(); y++) {
+					for (int x = 0; x < newImg.getWidth(); x++) {
+						newImg.setRGB(x, y, newImg.getRGB(x, y-1));
+					}
+				}
+				this.srcImages.remove(i);
+				this.srcImages.add(i, newImg);
+			}
+			this.width = new_width;
+			this.height = new_height;
 		}
-		
-		this.width = new_width;
-		this.height = new_height;
 	}
 	
-	public HashMap<Integer,ArrayList<Macroblock>> doPart1() throws Exception {
+	public HashMap<Integer,ArrayList<Macroblock>> doPart1() {
 		
 		int frameIndex = 0;
 		
+		System.out.println("Gathering original video frames...");
 		this.getFrames();
 		
+		System.out.println("Resizing frames...");
+		this.resizeFrames();
+		
+		System.out.println("Retrieving macroblocks and finding motion vectors...");
 		for (BufferedImage frame : this.srcImages) {
-			this.resizeFrame(frame);
 			this.blockMap.put(frameIndex, this.getMacroblocks(frame));
 			
 			if (frameIndex != 0) {
 				this.computeMVS(frameIndex-1, frameIndex);
 				
-				try {
-					this.decideForeground(this.blockMap.get(frameIndex));
-				}
-				catch (Exception ex) {
-					throw ex;
-				}
+				this.decideForeground(this.blockMap.get(frameIndex));
 			}
+			frameIndex++;
 		}
-		
+		System.out.println("Part 1 Complete.");
 		return this.blockMap;
 	}
 }
