@@ -83,8 +83,8 @@ public class part1 {
 	File input = null;
 	int width = 0;
 	int height = 0;
-	ArrayList<BufferedImage> srcImages = new ArrayList<BufferedImage>();  //list of frames
-	HashMap<Integer,ArrayList<Macroblock>> blockMap = new HashMap<Integer,ArrayList<Macroblock>>(); //maps frames to their Macroblock lists
+	ArrayList<BufferedImage> srcImages = null;  //list of frames
+	HashMap<Integer,ArrayList<Macroblock>> blockMap = null; //maps frames to their Macroblock lists
 	
 	public part1(File infile, int w, int h) {
 		
@@ -93,6 +93,7 @@ public class part1 {
 		this.height = h;
 		
 		srcImages = new ArrayList<BufferedImage>();
+		blockMap = new HashMap<Integer,ArrayList<Macroblock>>();
 		
 	}
 		
@@ -404,7 +405,9 @@ public class part1 {
 		this.resizeFrames();
 		
 		System.out.println("Retrieving macroblocks and finding motion vectors...");
-		for (BufferedImage frame : this.srcImages) {
+		while (this.srcImages.size() > 0) {
+			BufferedImage frame = this.srcImages.get(0);
+		//for (BufferedImage frame : this.srcImages) {
 			this.blockMap.put(frameIndex, this.getMacroblocks(frame));
 			
 			if (frameIndex != 0) {
@@ -412,6 +415,7 @@ public class part1 {
 				
 				this.decideForeground(this.blockMap.get(frameIndex));
 			}
+			this.srcImages.remove(0);
 			frameIndex++;
 		}
 		System.out.println("Part 1 Complete.");

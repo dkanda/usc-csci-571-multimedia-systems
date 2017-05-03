@@ -24,7 +24,8 @@ public class part1Tester {
 		//Do the test
 		resultMap = part1Test.doPart1();
 		
-		System.out.println("Size of Frame 1: " + resultMap.get(1).size());
+		System.out.println("Number of frames: " + resultMap.size());
+		System.out.println("Size of frames: " + resultMap.get(1).size());
 	}
 	
 	
