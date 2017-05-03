@@ -229,6 +229,15 @@ public class part1 {
 				block.setForeground(true);
 			}
 		}
+		else {
+			for (Macroblock block : foregroundList) {
+				block.setForeground(true);
+			}
+			
+			for (Macroblock block : backgroundList) {
+				block.setForeground(false);
+			}
+		}
 	}
 	
 	private ArrayList<Macroblock> getMacroblocks(BufferedImage frame) {
